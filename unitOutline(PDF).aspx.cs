@@ -26,8 +26,6 @@ namespace WebApplication5
              * You need to go to Tools > NuGet Package Manager > Manage NuGet Packages for Solution
              *  Search for "iTextSharp" install version 5.5.13.3, newer versions (iText 7) will not work with
              *  VisualStudio 2015
-             *
-             * Make sure to add all the "using" stuff above
              * 
              * Adapted from:
              * https://www.aspsnippets.com/Articles/Export-ASPNet-Web-Page-with-images-to-PDF-using-ITextsharp.aspx
@@ -35,35 +33,58 @@ namespace WebApplication5
              * 1. This code will output the aspx page as a PDF
              * 2. The stuff commented out below is my attempt to read in a PDF from my project and add it to our file stream (PDF writing part)
              */
-
+            
+            //Setup our response that lets us download the file
             Response.ContentType = "application/pdf";
-            Response.AddHeader("content-disposition", "attachment;filename=TestPage.pdf");
+            Response.AddHeader("content-disposition", "attachment;filename=UnitOutline_" + Request.QueryString["ID"]  + ".pdf");
             Response.Cache.SetCacheability(HttpCacheability.NoCache);
+
+            // This sets up our readers / writers to convert our webpage to a PDF
             StringWriter sw = new StringWriter();
             HtmlTextWriter hw = new HtmlTextWriter(sw);
             this.Page.RenderControl(hw);
             StringReader sr = new StringReader(sw.ToString());
-            Document pdfDoc = new Document(PageSize.A4, 10f, 10f, 100f, 0f);
+
+            // This sets up our PDF doc
+            Document pdfDoc = new Document(PageSize.A4, 10f, 10f, 10f, 0f);
             HTMLWorker htmlparser = new HTMLWorker(pdfDoc);
             PdfWriter.GetInstance(pdfDoc, Response.OutputStream);
 
-            //PdfReader pdfReader = new PdfReader(Server.MapPath("~/Files/") + "Test.pdf");
-            //PdfWriter writer = PdfWriter.GetInstance(pdfDoc, new FileStream(Server.MapPath("~/Files/") + "OutPut.pdf", FileMode.Create));
+            // Server.MapPath() maps our computer location to where it would be on a server.
+            // My Test.pdf is is in my "Files" folder in my solution
 
+            // This is grabbing our "other pdf" you may want to add dynamic pdf uploads if you have time
+            PdfReader pdfReader = new PdfReader(Server.MapPath("~/Files/Test.pdf"));
+
+            // This is setting up a writer 
+            PdfWriter writer = PdfWriter.GetInstance(pdfDoc, new FileStream(Server.MapPath("~/Files/OutPut.pdf"), FileMode.Create));
+
+            //Opens our document and writes our html to our doc
             pdfDoc.Open();
-            htmlparser.Parse(sr);         
-            /*
+            htmlparser.Parse(sr);
+            
+            // Do a thing for every page of our pdf
             for (int i = 1; i <= pdfReader.NumberOfPages; i++)
             {
-                // Is aware of how many pages, doesn't copy pdf properly so ends up with lots of blanks
+                // Imports the page and adds to our doc
                 PdfImportedPage page = writer.GetImportedPage(pdfReader, i);
                 pdfDoc.Add(iTextSharp.text.Image.GetInstance(page));
-            }*/
 
+                // Checks whether we need to rotate or not
+                if (pdfReader.GetPageSize(i).Width > pdfReader.GetPageSize(i).Height)
+                {
+                    pdfDoc.SetPageSize(iTextSharp.text.PageSize.A4.Rotate());
+                }
+                else
+                {
+                    pdfDoc.SetPageSize(iTextSharp.text.PageSize.A4);
+                }
+            }
 
+            // Close everything and save the file
             pdfDoc.Close();
-
-            Response.Write(pdfDoc);
+            pdfReader.Close();
+            Response.TransmitFile(Server.MapPath("~/Files/") + "OutPut.pdf");
             Response.End();
         }
 
